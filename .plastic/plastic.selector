@@ -1,0 +1,4 @@
+repository "OuterWildsVentures@local"
+  path "/"
+    smartbranch "/main"         
+     
