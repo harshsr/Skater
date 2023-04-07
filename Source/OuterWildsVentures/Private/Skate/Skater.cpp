@@ -48,7 +48,7 @@ void ASkater::BeginPlay()
 	}
 
 	// Add input mapping context
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
 		if(UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
@@ -68,7 +68,7 @@ void ASkater::Tick(float DeltaTime)
 	MoveWithSkatePhysics();
 
 	// Input Cooldown
-	InputCooldowns();
+	InputCoolDowns();
 
 	// Adjust rotations and grounded conditions and flip jumps
 	GroundAdjust();
@@ -132,7 +132,7 @@ void ASkater::LeanActionTriggered(const FInputActionValue& Value)
 			}
 			else
 			{
-				RotationTracker->AddWorldRotation(FRotator(0.0,0.0,AxisValue*2.0),false,nullptr,ETeleportType::TeleportPhysics);
+				RotationTracker->AddWorldRotation(FRotator(0.0,AxisValue*2,0),false,nullptr,ETeleportType::TeleportPhysics);
 				SkatePhysics->Lean(true, AxisValue);
 			}
 		}
@@ -191,7 +191,7 @@ void ASkater::GroundAdjust()
 				bGrounded = false;
 			}
 
-			// If SkatePhysics has positive Z velocity and ground trace hit normal is nearly horizontal, we Skater should perform a flip jump back onto the ramp.
+			// If SkatePhysics has positive Z velocity and ground trace hit normal is nearly horizontal, Skater should perform a flip jump back onto the ramp.
 			// For this, we perform two checks
 			
 			FVector PhysicsVelocity = SkatePhysics->GetSkatePhysicsVelocity();
@@ -201,10 +201,17 @@ void ASkater::GroundAdjust()
 			FVector GroundHitProjectionOnHorizontal = UKismetMathLibrary::ProjectPointOnToPlane(GroundTraceHitNormal,FVector{1.0,1.0,0.0},FVector{0.0,0.0,1.0});
 			float ProjectedLength = GroundHitProjectionOnHorizontal.Length();
 			bool bFlipJumpCheck2 = ProjectedLength>0.95;
+			
 			if (bFlipJumpCheck1 && bFlipJumpCheck2)
 			{
 				// Perform flip jump and tell SkatePhysics to adjust velocity accordingly.
 				SkatePhysics->FlipJump();
+
+				// TODO Temp Anim
+				if (GrabAnim)
+				{
+					MaxMesh->PlayAnimation(GrabAnim,false);
+				}
 			}
 			else
 			{
@@ -216,7 +223,7 @@ void ASkater::GroundAdjust()
 	}
 }
 
-void ASkater::InputCooldowns()
+void ASkater::InputCoolDowns()
 {
 	if (bPumped)
 	{

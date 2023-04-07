@@ -96,19 +96,19 @@ void ASkatePhysics::CheckGrinding()
 			if (GrindHitResult.bBlockingHit && GrindHitResult.Distance<50.0)
 			{
 				GrindActor = GrindHitResult.GetActor();
-				
-				FVector SplineTangent = IGrindface::Execute_FindSplineTangentNearHitLocation(GrindActor,GrindHitResult.ImpactPoint);
+
+				const FVector SplineTangent = IGrindface::Execute_FindSplineTangentNearHitLocation(GrindActor,GrindHitResult.ImpactPoint).GetSafeNormal();
 
 				// Check 1 = has enough velocity to grind
-				bool bCheck1 = RootSphere->GetPhysicsLinearVelocity().Length() > 250.0f;
+				const bool bCheck1 = RootSphere->GetPhysicsLinearVelocity().Length() > 250.0f;
 
 				// Check 2 = Velocity direction and spline direction is within 25 degree angle of each other
-				bool bCheck2 = (UKismetMathLibrary::Abs( FVector::DotProduct(SplineTangent,RootSphere->GetPhysicsLinearVelocity().GetSafeNormal()))) > (0.9);
+				const bool bCheck2 = (UKismetMathLibrary::Abs( FVector::DotProduct(SplineTangent,RootSphere->GetPhysicsLinearVelocity().GetSafeNormal()))) > (0.9);
 				
 				if (bCheck1 && bCheck2)
 				{
 					// Decide if Skater intends to move in direction of grind spline or opposite of it.
-					bMovingInSplineDirection = (UKismetMathLibrary::Abs( FVector::DotProduct(SplineTangent,RootSphere->GetPhysicsLinearVelocity().GetSafeNormal()))) > (0.0);
+					bMovingInSplineDirection =  FVector::DotProduct(SplineTangent,RootSphere->GetPhysicsLinearVelocity().GetSafeNormal()) > (0.0);
 					
 					GrindSnapPoint = IGrindface::Execute_GetInitialSnapPoint(GrindActor,GrindHitResult.ImpactPoint);
 					GrindSplineLength = IGrindface::Execute_GetSplineLength(GrindActor);
@@ -126,7 +126,7 @@ void ASkatePhysics::CheckGrinding()
 
 void ASkatePhysics::ClampVelocity()
 {
-	float NewVelocityMagnitude = FMath::Clamp(RootSphere->GetPhysicsLinearVelocity().Length(),0.0,MaxVelocity);
+	const float NewVelocityMagnitude = FMath::Clamp(RootSphere->GetPhysicsLinearVelocity().Length(),0.0,MaxVelocity);
 	RootSphere->SetPhysicsLinearVelocity(RootSphere->GetPhysicsLinearVelocity().GetSafeNormal()*NewVelocityMagnitude);
 }
 
@@ -134,7 +134,7 @@ void ASkatePhysics::StickToGround()
 {
 	if (Cast<ASkater>(UGameplayStatics::GetPlayerPawn(GetWorld(),0))->GetGrounded())
 	{
-		FVector Force =  SkaterRef->RotationTracker->GetUpVector() * -1000;
+		const FVector Force =  SkaterRef->RotationTracker->GetUpVector() * -1000;
 		RootSphere->AddForce(Force,NAME_None,true);
 	}
 }
@@ -147,8 +147,15 @@ void ASkatePhysics::ChangeSkateMode(TEnumAsByte<ESkateMode> NewSkateMode)
 	case Skate:
 		{
 			RootSphere->SetSimulatePhysics(true);
-			FVector NewVelocity = SkaterRef->GetRotationTrackerForwardVector()*GrindInitialVelocity.Length();
+			const FVector NewVelocity = SkaterRef->GetRotationTrackerForwardVector()*GrindInitialVelocity.Length();
 			RootSphere->SetPhysicsLinearVelocity(NewVelocity);
+
+			//TODO Temp anim
+			if (SkateAnim && StableAnim)
+			{
+				SkaterRef->BoardMesh->PlayAnimation(StableAnim,true);
+				SkaterRef->MaxMesh->PlayAnimation(SkateAnim,true);
+			}
 			break;
 		}
 	case ESkateMode::Grind:
@@ -169,8 +176,7 @@ void ASkatePhysics::Grind()
 		{
 			// try to move in positive direction of grind spline
 			GrindCurrentDistance +=GrindInitialVelocity.Length()*TickDelta;
-			bool bIsGrindOver = GrindCurrentDistance>GrindSplineLength;
-			if (bIsGrindOver)
+			if (GrindCurrentDistance>GrindSplineLength)
 			{
 				// Abandon grind
 				ChangeSkateMode(Skate);
@@ -178,7 +184,7 @@ void ASkatePhysics::Grind()
 			else
 			{
 				// Continue to grind
-				FVector SplineSnapPoint = IGrindface::Execute_GetSnapPointAtDistanceAlongSpline(GrindActor,GrindCurrentDistance);
+				const FVector SplineSnapPoint = IGrindface::Execute_GetSnapPointAtDistanceAlongSpline(GrindActor,GrindCurrentDistance);
 
 				// apply z offset to snap point
 				GrindSnapPoint = FVector{SplineSnapPoint.X, SplineSnapPoint.Y,SplineSnapPoint.Z + GrindZOffset};
@@ -193,8 +199,7 @@ void ASkatePhysics::Grind()
 		{
 			// try to move in opposite direction of grind spline
 			GrindCurrentDistance -=GrindInitialVelocity.Length()*TickDelta;
-			bool bIsGrindOver = GrindCurrentDistance<0.0;
-			if (bIsGrindOver)
+			if (GrindCurrentDistance<0.0)
 			{
 				// Abandon grind
 				ChangeSkateMode(Skate);
@@ -202,7 +207,7 @@ void ASkatePhysics::Grind()
 			else
 			{
 				// Continue to grind
-				FVector SplineSnapPoint = IGrindface::Execute_GetSnapPointAtDistanceAlongSpline(GrindActor,GrindCurrentDistance);
+				const FVector SplineSnapPoint = IGrindface::Execute_GetSnapPointAtDistanceAlongSpline(GrindActor,GrindCurrentDistance);
 
 				// apply z offset to snap point
 				GrindSnapPoint = FVector{SplineSnapPoint.X, SplineSnapPoint.Y,SplineSnapPoint.Z + GrindZOffset};
@@ -217,6 +222,13 @@ void ASkatePhysics::Grind()
 	{
 		SetActorLocation(FVector{GrindSnapPoint.X,GrindSnapPoint.Y,GrindSnapPoint.Z+GrindZOffset},false,nullptr,ETeleportType::TeleportPhysics);
 		bGrindInitialSnapHappened = true;
+		
+		//TODO Temp anim
+		if (GrindAnim && GrindBoardAnim)
+		{
+			SkaterRef->BoardMesh->PlayAnimation(GrindBoardAnim,true);
+			SkaterRef->MaxMesh->PlayAnimation(GrindAnim,true);
+		}
 	}
 }
 
@@ -226,11 +238,18 @@ void ASkatePhysics::Ollie()
 	{
 	case ESkateMode::Skate:
 		{
-			FVector ForwardVec =SkaterRef->RotationTracker->GetForwardVector();
-			FVector UpVec = SkaterRef->RotationTracker->GetUpVector();
-			FVector Impulse = (ForwardVec*0.05 + UpVec)*OllieImpulse;
+			const FVector ForwardVec =SkaterRef->RotationTracker->GetForwardVector();
+			const FVector UpVec = SkaterRef->RotationTracker->GetUpVector();
+			const FVector Impulse = (ForwardVec*0.05 + UpVec)*OllieImpulse;
 			RootSphere->AddImpulse(Impulse,NAME_None,true);
 			bOllieNextFrame = false;
+
+			//TODO temp anim
+			if (OllieAnim && OllieJumpAnim)
+			{
+				SkaterRef->BoardMesh->PlayAnimation(OllieAnim,false);
+				SkaterRef->MaxMesh->PlayAnimation(OllieJumpAnim,false);
+			}
 			
 			break;
 		}
@@ -250,8 +269,8 @@ void ASkatePhysics::Lean(bool bAtRest, float AxisValue)
 {
 	if(!bAtRest && CurrentSkateMode == Skate)
 	{
-		FVector LeanDirection = FVector::CrossProduct(FVector{0.0,0.0,1.0},RootSphere->GetPhysicsLinearVelocity().GetSafeNormal()).GetSafeNormal();
-		float LeanMagnitude = FMath::Clamp(RootSphere->GetPhysicsLinearVelocity().Length()/MaxVelocity,0.25,2.0) * AxisValue * LeanForce;
+		const FVector LeanDirection = FVector::CrossProduct(FVector{0.0,0.0,1.0},RootSphere->GetPhysicsLinearVelocity().GetSafeNormal()).GetSafeNormal();
+		const float LeanMagnitude = FMath::Clamp(RootSphere->GetPhysicsLinearVelocity().Length()/MaxVelocity,0.25,2.0) * AxisValue * LeanForce;
 
 		RootSphere->AddForce(LeanDirection*LeanMagnitude,NAME_None,true);
 	}
@@ -295,8 +314,6 @@ void ASkatePhysics::AirTrajectoryPrediction()
 
 		if(GetWorld()->LineTraceSingleByChannel(PredictionTraceResult,TraceStart,TraceEnd,ECC_Visibility))
 		{
-			DrawDebugDirectionalArrow(GetWorld(),TraceStart,TraceEnd,10,FColor::Emerald,true);
-			
 			//DrawDebugLine(GetWorld(),TraceStart,TraceEnd,FColor::Silver,true,-1);
 			
 			if(PredictionTraceResult.bBlockingHit)
@@ -313,6 +330,8 @@ void ASkatePhysics::AirTrajectoryPrediction()
 				break;
 			}
 		}
+		
+		DrawDebugDirectionalArrow(GetWorld(),TraceStart,TraceEnd,10,FColor::Emerald,true);
 	}
 	
 }
@@ -320,16 +339,16 @@ void ASkatePhysics::AirTrajectoryPrediction()
 void ASkatePhysics::FlipJump()
 {
 	// When performing this move, we remove the part of velocity that that pushes into the ramp so that skater will land back on the ramp
-
+	
 	// Direction of unnecessary velocity points inward of the ramp
-	FVector DirectionOfUnnecessaryVelocity = FVector::CrossProduct(FVector::CrossProduct(GroundTraceHitNormal,FVector{0.0,0.0,1.0}).GetSafeNormal(),
+	const FVector DirectionOfUnnecessaryVelocity = FVector::CrossProduct(FVector::CrossProduct(GroundTraceHitNormal,FVector{0.0,0.0,1.0}).GetSafeNormal(),
 		FVector{0.0,0.0,1.0});
 
-	// Magnitude of unnecessary velocity approachs zero as the angle between actual and unnecessary velocity approaches 90 degrees
-	float MagnitudeOfUnnecessaryVelocity = FVector::DotProduct(RootSphere->GetPhysicsLinearVelocity(),DirectionOfUnnecessaryVelocity);
+	// Magnitude of unnecessary velocity approaches zero as the angle between actual and unnecessary velocity approaches 90 degrees
+	const float MagnitudeOfUnnecessaryVelocity = FVector::DotProduct(RootSphere->GetPhysicsLinearVelocity(),DirectionOfUnnecessaryVelocity);
 
-	FVector UnnecessaryVelocity = DirectionOfUnnecessaryVelocity * MagnitudeOfUnnecessaryVelocity;
-	FVector NewVel = RootSphere->GetPhysicsLinearVelocity() - UnnecessaryVelocity;
+	const FVector UnnecessaryVelocity = DirectionOfUnnecessaryVelocity * MagnitudeOfUnnecessaryVelocity;
+	const FVector NewVel = RootSphere->GetPhysicsLinearVelocity() - UnnecessaryVelocity;
 
 	RootSphere->SetPhysicsLinearVelocity(NewVel);
 }
@@ -358,6 +377,7 @@ FHitResult ASkatePhysics::ReportGroundCondition()
 		{
 			if(HitResult.bBlockingHit)
 			{
+				GroundTraceHitNormal = HitResult.ImpactNormal;
 				return HitResult;
 			}
 		}

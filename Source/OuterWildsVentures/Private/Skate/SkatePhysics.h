@@ -147,7 +147,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void StickToGround();
 
-	// Change skate mode and perform related operaions
+	// Change skate mode and perform related operations
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void ChangeSkateMode(TEnumAsByte<ESkateMode> NewSkateMode);
 
@@ -170,4 +170,27 @@ public:
 	virtual FVector GetSkatePhysicsVelocity() override;
 	virtual FHitResult ReportGroundCondition() override;
 
+protected:
+	// TEMPORARY animation asset refs
+	
+	UPROPERTY(EditDefaultsOnly, Category="TempAnim")
+	UAnimationAsset* PumpAnim;
+
+	UPROPERTY(EditDefaultsOnly, Category="TempAnim")
+	UAnimationAsset* OllieAnim;
+
+	UPROPERTY(EditDefaultsOnly, Category="TempAnim")
+	UAnimationAsset* OllieJumpAnim;
+
+	UPROPERTY(EditDefaultsOnly, Category="TempAnim")
+	UAnimationAsset* SkateAnim;
+
+	UPROPERTY(EditDefaultsOnly, Category="TempAnim")
+	UAnimationAsset* StableAnim;
+
+	UPROPERTY(EditDefaultsOnly, Category="TempAnim")
+	UAnimationAsset* GrindAnim;
+
+	UPROPERTY(EditDefaultsOnly, Category="TempAnim")
+	UAnimationAsset* GrindBoardAnim;
 };

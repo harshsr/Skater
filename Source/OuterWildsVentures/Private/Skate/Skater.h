@@ -128,7 +128,7 @@ public:
 
 	// Input cooldown. Mainly for pump.
 	UFUNCTION(BlueprintCallable, Category = "Input")
-	void InputCooldowns();
+	void InputCoolDowns();
 
 	// Move pawn with skate physics. Perform first on tick.
 	UFUNCTION(BlueprintCallable)
@@ -156,4 +156,9 @@ public:
 
 	// Internal Functions
 
+protected:
+	//TEMPORARY animation asset refs
+	
+	UPROPERTY(EditDefaultsOnly, Category="TempAnim")
+	UAnimationAsset* GrabAnim;
 };
